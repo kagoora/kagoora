@@ -103,6 +103,8 @@ body.fsb #in,body.fsb #call{padding-top:calc(54px + 2.5vh)}
     <button id="ringBtn" type="button" class="link">Atau pilih file sendiri</button>
     <input id="ringIn" type="file" accept="audio/*,.mp3,.m4a,.m4r,.aac,.wav" hidden>
     <div id="ringInfo">Ringtone: iPhone</div>
+    <button id="testRing" type="button" class="link">&#9654; Tes ringtone</button>
+    <div id="audErr" style="font-size:12px;color:#f15c6d;margin-top:4px;word-break:break-word"></div>
   </div>
 
   <div class="card">
@@ -228,6 +230,7 @@ body.fsb #in,body.fsb #call{padding-top:calc(54px + 2.5vh)}
   function pickRing(k){
     try{ring.pause();}catch(e){}
     ring=new Audio(RT[k]);ring.loop=true;ring.preload='auto';
+    testing=false;$('testRing').innerHTML='&#9654; Tes ringtone';ring.onerror=function(){$('audErr').textContent='File audio gagal dimuat.'};
     $('ringInfo').textContent='Ringtone: '+RN[k];
     Array.prototype.forEach.call(document.querySelectorAll('#rings .chip'),function(x){x.classList.toggle('sel',x.dataset.r===k)});
     try{localStorage.setItem('fc_ring',k)}catch(e){}
@@ -246,9 +249,11 @@ body.fsb #in,body.fsb #call{padding-top:calc(54px + 2.5vh)}
   function vibOff(){clearInterval(vib);vib=null;try{if(navigator.vibrate)navigator.vibrate(0)}catch(e){}}
   function vibOn(){vibOff();if(!navigator.vibrate)return;var go=function(){try{navigator.vibrate([700,300,700,300,700,1500])}catch(e){}};go();vib=setInterval(go,4200)}
 
+  var unl=false,needTap=false;
   function unlockAudio(){
     try{
-      var p=ring.play(); if(p&&p.then)p.then(function(){ring.pause();ring.currentTime=0}).catch(function(){});
+      unl=true;
+      var p=ring.play(); if(p&&p.then)p.then(function(){if(unl){ring.pause();ring.currentTime=0}unl=false}).catch(function(){unl=false});
       var q=sil.play(); if(q&&q.catch)q.catch(function(){});
     }catch(e){}
   }
@@ -288,7 +293,8 @@ body.fsb #in,body.fsb #call{padding-top:calc(54px + 2.5vh)}
     var n=curName();
     $('nmIn').textContent=n;
     show('in');
-    try{ring.currentTime=0;ring.play().catch(function(){});}catch(e){}
+    unl=false;needTap=false;
+    try{ring.currentTime=0;var pp=ring.play();if(pp&&pp.catch)pp.catch(function(e){needTap=true;});}catch(e){needTap=true;}
     vibOn();
   }
   function reset(){
@@ -306,6 +312,17 @@ body.fsb #in,body.fsb #call{padding-top:calc(54px + 2.5vh)}
     show('wait');check();
     tick=setInterval(check,250);
   };
+  document.addEventListener('pointerdown',function(){if(needTap&&$('in').classList.contains('on')){needTap=false;try{ring.play().catch(function(){});}catch(e){}}});
+  var testing=false;
+  $('testRing').onclick=function(){
+    var er=$('audErr');er.textContent='';
+    if(testing){ring.pause();ring.currentTime=0;testing=false;this.innerHTML='&#9654; Tes ringtone';return;}
+    var btn=this;
+    try{ring.currentTime=0;var p=ring.play();
+      if(p&&p.then)p.then(function(){testing=true;btn.innerHTML='&#9632; Stop tes'}).catch(function(e){er.textContent='Gagal bunyi: '+(e&&e.name)+' '+(e&&e.message||'')});
+    }catch(e){er.textContent='Error: '+e.message}
+  };
+  ring.onerror=function(){$('audErr').textContent='File audio gagal dimuat.'};
   $('cancel').onclick=reset;
   $('decline').onclick=reset;
   $('accept').onclick=function(){
